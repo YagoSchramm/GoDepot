@@ -1,7 +1,18 @@
 package main
 
-import "github.com/YagoSchramm/GoDepot/service"
+import (
+	"log"
+	"net/http"
+
+	"github.com/YagoSchramm/GoDepot/service"
+)
 
 func main() {
-	service.Build()
+	r, cleanup, err := service.Build()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer cleanup()
+
+	log.Fatal(http.ListenAndServe(":8080", r))
 }
