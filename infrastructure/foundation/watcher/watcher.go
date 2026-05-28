@@ -37,7 +37,6 @@ func (w *Watcher) Start() error {
 		return err
 	}
 
-	// Observa cada subpasta de usuário
 	entries, err := os.ReadDir(w.rootDir)
 	if err != nil {
 		return err
@@ -59,7 +58,6 @@ func (w *Watcher) Stop() {
 	w.fsw.Close()
 }
 
-// loop processa eventos do fsnotify indefinidamente.
 func (w *Watcher) loop() {
 	for {
 		select {
@@ -111,7 +109,7 @@ func (w *Watcher) indexExisting() error {
 		}
 		file, err := w.buildFile(path, info)
 		if err != nil {
-			return nil // ignora arquivos que não conseguiu processar
+			return nil
 		}
 		w.index.Add(file)
 		return nil
