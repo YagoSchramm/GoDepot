@@ -2,12 +2,15 @@ package service
 
 import (
 	"errors"
+	"log"
 	"os"
 	"strings"
 
 	usecaseimpl "github.com/YagoSchramm/GoDepot/domain/usecase/impl"
+	"github.com/YagoSchramm/GoDepot/infrastructure/datastore/index/impl"
 	repoimpl "github.com/YagoSchramm/GoDepot/infrastructure/datastore/repository/impl"
 	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/db"
+	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/watcher"
 	approuter "github.com/YagoSchramm/GoDepot/infrastructure/router"
 	modules "github.com/YagoSchramm/GoDepot/infrastructure/router/module"
 	"github.com/gorilla/mux"
@@ -56,6 +59,17 @@ func Build() (*mux.Router, func(), error) {
 	dbConn, err := db.NewPostgresConnection(dsn)
 	if err != nil {
 		return nil, func() {}, err
+	}
+
+	idx := impl.NewFileIndex()
+
+	w, err := watcher.NewWatcher("./files", idx)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer w.Stop()
+	if err := w.Start(); err != nil {
+		log.Fatal(err)
 	}
 
 	authRepository := repoimpl.NewAuthRepository(dbConn)
