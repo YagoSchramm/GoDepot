@@ -3,6 +3,7 @@ package image
 import (
 	"bytes"
 	"image"
+	_ "image/gif"
 	"image/jpeg"
 	"image/png"
 	"os"
@@ -10,12 +11,11 @@ import (
 
 	"github.com/YagoSchramm/GoDepot/domain/entity"
 	"github.com/YagoSchramm/GoDepot/domain/entity/derr"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor"
 	"github.com/disintegration/imaging"
 )
 
-type ImageProcessor struct {
-}
+type ImageProcessor struct{}
 
 func NewImageProcessor() processor.Processor {
 	return &ImageProcessor{}
@@ -33,20 +33,22 @@ func (p *ImageProcessor) CanHandle(mimeType string) bool {
 func (p *ImageProcessor) Process(f entity.File, opts entity.Options) (entity.Result, error) {
 	file, err := os.Open(f.Path)
 	if err != nil {
-		return entity.Result{}, derr.JoinError("Failed to open the image file: ", err)
+		return entity.Result{}, derr.JoinError("failed to open the image file", err)
 	}
 	defer file.Close()
 
 	img, _, err := image.Decode(file)
 	if err != nil {
-		return entity.Result{}, derr.JoinError("Failed to decode the image: ", err)
+		return entity.Result{}, derr.JoinError("failed to decode the image", err)
 	}
 
-	if opts.Width <= 0 || opts.Height <= 0 {
-		return entity.Result{}, derr.JoinError("Failed to resize the image", err)
+	if opts.Width < 0 || opts.Height < 0 {
+		return entity.Result{}, derr.NewClientError("INVALID_IMAGE_SIZE", "width and height must be greater than or equal to zero")
 	}
 
-	img = imaging.Resize(img, opts.Width, opts.Height, imaging.Lanczos)
+	if opts.Width > 0 || opts.Height > 0 {
+		img = imaging.Resize(img, opts.Width, opts.Height, imaging.Lanczos)
+	}
 
 	format := strings.ToLower(opts.Format)
 	if format == "" {
@@ -59,6 +61,15 @@ func (p *ImageProcessor) Process(f entity.File, opts entity.Options) (entity.Res
 	case "png":
 		contentType = "image/png"
 		err = png.Encode(&buf, img)
+	case "jpg", "jpeg":
+		contentType = "image/jpeg"
+		quality := opts.Quality
+		if quality == 0 {
+			quality = 85
+		}
+		err = jpeg.Encode(&buf, img, &jpeg.Options{Quality: quality})
+	case "webp":
+		return entity.Result{}, derr.NewClientError("UNSUPPORTED_IMAGE_FORMAT", "webp output is not supported yet")
 	default:
 		quality := opts.Quality
 		if quality == 0 {
@@ -68,7 +79,7 @@ func (p *ImageProcessor) Process(f entity.File, opts entity.Options) (entity.Res
 	}
 
 	if err != nil {
-		return entity.Result{}, derr.JoinError("image: failed to encode: ", err)
+		return entity.Result{}, derr.JoinError("image: failed to encode", err)
 	}
 
 	return entity.Result{

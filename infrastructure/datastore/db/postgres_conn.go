@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	_ "github.com/jackc/pgx/v5/stdlib"
 	"time"
+
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
 
 func NewPostgresConnection(dsn string) (*sql.DB, error) {

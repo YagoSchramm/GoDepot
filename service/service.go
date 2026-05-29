@@ -2,20 +2,21 @@ package service
 
 import (
 	"errors"
-	"log"
 	"os"
 	"strings"
+	"time"
 
 	usecaseimpl "github.com/YagoSchramm/GoDepot/domain/usecase/impl"
+	"github.com/YagoSchramm/GoDepot/infrastructure/datastore/cache"
+	"github.com/YagoSchramm/GoDepot/infrastructure/datastore/db"
 	"github.com/YagoSchramm/GoDepot/infrastructure/datastore/index/impl"
 	repoimpl "github.com/YagoSchramm/GoDepot/infrastructure/datastore/repository/impl"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/db"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor/impl/document"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor/impl/image"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor/impl/raw"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor/impl/video"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/watcher"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor/impl/document"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor/impl/image"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor/impl/raw"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor/impl/video"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/watcher"
 	approuter "github.com/YagoSchramm/GoDepot/infrastructure/router"
 	modules "github.com/YagoSchramm/GoDepot/infrastructure/router/module"
 	"github.com/gorilla/mux"
@@ -67,10 +68,11 @@ func Build() (*mux.Router, func(), error) {
 	}
 
 	idx := impl.NewFileIndex()
+	fileCache := cache.NewMemoryCache(5 * time.Minute)
 
-	w, err := watcher.NewWatcher("./files", idx)
+	w, err := watcher.NewWatcher(idx, fileCache)
 	if err != nil {
-		log.Fatal(err)
+		return nil, func() {}, err
 	}
 
 	registry := processor.NewRegistry()
@@ -80,25 +82,26 @@ func Build() (*mux.Router, func(), error) {
 	registry.Register(document.NewDocumentProcessor())
 	registry.Register(raw.NewRawProcessor())
 
-	defer w.Stop()
-	if err := w.Start(); err != nil {
-		log.Fatal(err)
-	}
+	w.Start()
 
 	authRepository := repoimpl.NewAuthRepository(dbConn)
 	cleanup := func() {
+		w.Stop()
 		_ = dbConn.Close()
 	}
 
 	authUseCase := usecaseimpl.NewAuthRepository(authRepository, secret)
+	fileUseCase := usecaseimpl.NewFileUseCase(idx, w, registry, fileCache)
 
 	authModule := modules.NewAuthModule(authUseCase, secret)
+	fileModule := modules.NewFileModule(fileUseCase)
 
 	router := mux.NewRouter()
 	approuter.Mount(
 		router,
 		authModule.Middlewares(),
 		authModule,
+		fileModule,
 	)
 
 	return router, cleanup, nil

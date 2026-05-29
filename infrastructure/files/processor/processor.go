@@ -6,6 +6,7 @@ type Processor interface {
 	CanHandle(mimeType string) bool
 	Process(file entity.File, opts entity.Options) (entity.Result, error)
 }
+
 type Registry struct {
 	processors []Processor
 }
