@@ -9,8 +9,8 @@ import (
 	"github.com/YagoSchramm/GoDepot/domain/rules"
 	"github.com/YagoSchramm/GoDepot/domain/usecase"
 	"github.com/YagoSchramm/GoDepot/infrastructure/datastore/repository"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/hash"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/jwt"
+	"github.com/YagoSchramm/GoDepot/infrastructure/security/hash"
+	"github.com/YagoSchramm/GoDepot/infrastructure/security/jwt"
 	"github.com/google/uuid"
 )
 

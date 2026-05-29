@@ -8,7 +8,7 @@ import (
 
 	"github.com/YagoSchramm/GoDepot/domain/entity"
 	"github.com/YagoSchramm/GoDepot/domain/entity/derr"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor"
 )
 
 type textMeta struct {
@@ -40,7 +40,7 @@ func (p *DocumentProcessor) Process(file entity.File, opts entity.Options) (enti
 		return p.processPDF(file)
 	}
 
-	return entity.Result{}, derr.JoinError("document: unsupported type "+file.MimeType, nil)
+	return entity.Result{}, derr.NewClientError("UNSUPPORTED_DOCUMENT_TYPE", "unsupported document type")
 }
 
 func (p *DocumentProcessor) processText(file entity.File, opts entity.Options) (entity.Result, error) {
@@ -59,8 +59,12 @@ func (p *DocumentProcessor) processText(file entity.File, opts entity.Options) (
 		lines = append(lines, line)
 		wordCount += len(strings.Fields(line))
 	}
+	if err := scanner.Err(); err != nil {
+		return entity.Result{}, err
+	}
 
-	preview := strings.Join(lines[:min(3, len(lines))], "\n")
+	previewLines := min(3, len(lines))
+	preview := strings.Join(lines[:previewLines], "\n")
 
 	meta := textMeta{
 		Name:      file.Name,
@@ -69,7 +73,10 @@ func (p *DocumentProcessor) processText(file entity.File, opts entity.Options) (
 		Preview:   preview,
 	}
 
-	data, _ := json.Marshal(meta)
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return entity.Result{}, err
+	}
 	return entity.Result{
 		Data:        data,
 		ContentType: "application/json",
@@ -88,7 +95,10 @@ func (p *DocumentProcessor) processPDF(file entity.File) (entity.Result, error) 
 		Size: file.Size,
 		Note: "full PDF parsing not implemented yet",
 	}
-	data, _ := json.Marshal(meta)
+	data, err := json.Marshal(meta)
+	if err != nil {
+		return entity.Result{}, err
+	}
 	return entity.Result{
 		Data:        data,
 		ContentType: "application/json",

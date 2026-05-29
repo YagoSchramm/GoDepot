@@ -11,8 +11,8 @@ import (
 	"github.com/YagoSchramm/GoDepot/domain/entity"
 	"github.com/YagoSchramm/GoDepot/domain/entity/derr"
 	"github.com/YagoSchramm/GoDepot/domain/usecase"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/jwt"
 	"github.com/YagoSchramm/GoDepot/infrastructure/router"
+	"github.com/YagoSchramm/GoDepot/infrastructure/security/jwt"
 	"github.com/gorilla/mux"
 )
 

@@ -6,11 +6,10 @@ import (
 
 	"github.com/YagoSchramm/GoDepot/domain/entity"
 	"github.com/YagoSchramm/GoDepot/domain/entity/derr"
-	"github.com/YagoSchramm/GoDepot/infrastructure/foundation/processor"
+	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor"
 )
 
-type VideoProcessor struct {
-}
+type VideoProcessor struct{}
 
 func NewVideoProcessor() processor.Processor {
 	return &VideoProcessor{}
@@ -30,7 +29,7 @@ func (v *VideoProcessor) Process(file entity.File, opts entity.Options) (entity.
 
 	data, err := json.Marshal(meta)
 	if err != nil {
-		return entity.Result{}, derr.JoinError("Failed to Marshal video metadata: ", err)
+		return entity.Result{}, derr.JoinError("failed to marshal video metadata", err)
 	}
 
 	return entity.Result{

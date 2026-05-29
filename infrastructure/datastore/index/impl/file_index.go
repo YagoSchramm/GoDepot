@@ -2,6 +2,8 @@ package impl
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 	"sync"
 
 	"github.com/YagoSchramm/GoDepot/domain/entity"
@@ -45,10 +47,13 @@ func (f *fileIndex) ListByUserID(userID string) []entity.File {
 	prefix := userID + ":"
 	result := []entity.File{}
 	for k, f := range f.files {
-		if len(k) > len(prefix) && k[:len(prefix)] == prefix {
+		if strings.HasPrefix(k, prefix) {
 			result = append(result, f)
 		}
 	}
+	sort.Slice(result, func(i, j int) bool {
+		return result[i].Name < result[j].Name
+	})
 	return result
 }
 
@@ -56,6 +61,31 @@ func (f *fileIndex) Remove(userID, name string) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	delete(f.files, key(userID, name))
+}
+
+func (f *fileIndex) RemoveByPrefix(userID, namePrefix string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	prefix := key(userID, namePrefix)
+	childPrefix := prefix + "/"
+	for k := range f.files {
+		if k == prefix || strings.HasPrefix(k, childPrefix) {
+			delete(f.files, k)
+		}
+	}
+}
+
+func (f *fileIndex) ClearByUserID(userID string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+
+	prefix := userID + ":"
+	for k := range f.files {
+		if strings.HasPrefix(k, prefix) {
+			delete(f.files, k)
+		}
+	}
 }
 
 func key(userID, name string) string {
