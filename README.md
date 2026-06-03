@@ -7,6 +7,7 @@ GoDepot is a Go HTTP service for authenticated file indexing and retrieval. User
 - User registration and login with JWT bearer tokens
 - PostgreSQL-backed user storage
 - Per-user synchronized folder watching
+- Authenticated file upload to the local `files` folder
 - In-memory file index and short-lived file response cache
 - File listing and content serving
 - Image processing for JPEG, PNG, and GIF files
@@ -114,6 +115,16 @@ curl -X POST http://localhost:8080/files/sync-folder \
 curl http://localhost:8080/files \
   -H "Authorization: Bearer <token>"
 ```
+
+### Upload File
+
+```bash
+curl -X POST http://localhost:8080/files/upload \
+  -H "Authorization: Bearer <token>" \
+  -F "file=@./photo.jpg"
+```
+
+The file is stored under `files/<user-id>/` and added to the in-memory index.
 
 ### Get File Content
 

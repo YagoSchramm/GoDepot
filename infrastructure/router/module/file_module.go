@@ -70,6 +70,13 @@ func (m fileModule) Routes() []router.RouteDefinition {
 			HttpMethods: []string{http.MethodPost},
 			Public:      false,
 		},
+		{
+			Path:        "/upload",
+			Description: "Upload a file to the server files folder",
+			Handler:     m.uploadFile,
+			HttpMethods: []string{http.MethodPost},
+			Public:      false,
+		},
 	}
 }
 
@@ -122,6 +129,53 @@ func (m fileModule) listFiles(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := router.Write(w, files); err != nil {
+		slog.ErrorContext(ctx, "failed to write response", "error", err)
+	}
+}
+
+func (m fileModule) uploadFile(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	claims, ok := ctx.Value("user_claims").(*jwt.Claims)
+	if !ok {
+		router.HandleError(w, derr.UnauthorizedError)
+		return
+	}
+
+	r.Body = http.MaxBytesReader(w, r.Body, 100<<20)
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
+		router.HandleError(w, derr.NewBadRequestError("multipart form with file field is required"))
+		return
+	}
+	if r.MultipartForm != nil {
+		defer r.MultipartForm.RemoveAll()
+	}
+
+	file, header, err := r.FormFile("file")
+	if err != nil {
+		router.HandleError(w, derr.NewBadRequestError("file is required"))
+		return
+	}
+	defer file.Close()
+
+	name := strings.TrimSpace(r.FormValue("name"))
+	if name == "" {
+		name = header.Filename
+	}
+
+	uploaded, err := m.fileUseCase.UploadFile(ctx, claims.UserID, dto.UploadFileRequest{
+		Name:        name,
+		ContentType: header.Header.Get("Content-Type"),
+		Reader:      file,
+	})
+	if err != nil {
+		slog.ErrorContext(ctx, "failed to upload file", "error", err)
+		router.HandleError(w, err)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
+	if err := router.Write(w, uploaded); err != nil {
 		slog.ErrorContext(ctx, "failed to write response", "error", err)
 	}
 }
