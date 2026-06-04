@@ -6,9 +6,10 @@ GoDepot is a Go HTTP service for authenticated file indexing and retrieval. User
 
 - User registration and login with JWT bearer tokens
 - PostgreSQL-backed user storage
+- Optional Redis-backed file response cache
 - Per-user synchronized folder watching
 - Authenticated file upload to the local `files` folder
-- In-memory file index and short-lived file response cache
+- In-memory file index and short-lived Redis or in-memory response cache
 - File listing and content serving
 - Image processing for JPEG, PNG, and GIF files
 - Basic metadata responses for text, Markdown, PDF, and video files
@@ -18,6 +19,7 @@ GoDepot is a Go HTTP service for authenticated file indexing and retrieval. User
 - Go 1.25.6
 - Gorilla Mux
 - PostgreSQL 16
+- Redis
 - pgx
 - fsnotify
 - JWT
@@ -32,6 +34,7 @@ GoDepot is a Go HTTP service for authenticated file indexing and retrieval. User
 +-- domain/                          # Entities, rules, use cases, DTOs
 +-- infrastructure/
 |   +-- datastore/                   # Database, repositories, cache, file index
+|   +-- foundation/                  # External service connections
 |   +-- files/                       # File watcher and processors
 |   +-- router/                      # HTTP routing and modules
 |   +-- script/migrate/              # Database migrations
@@ -53,7 +56,7 @@ Create a local environment file:
 cp .env-example .env
 ```
 
-Start PostgreSQL:
+Start PostgreSQL and Redis:
 
 ```bash
 docker compose up -d
@@ -76,9 +79,11 @@ http://localhost:8080
 ```env
 DATABASE_URL=postgres://godepot:godepot@localhost:5432/godepot?sslmode=disable
 JWT_SECRET=change-me
+REDIS_URL=redis://localhost:6379/0
 ```
 
 `DATABASE_URL` is required. `JWT_SECRET` is used to sign and validate JWTs and should be changed for non-local environments.
+`REDIS_URL` is optional. When it is set, file list and content responses use Redis for the short-lived cache; otherwise the API falls back to the in-memory cache.
 
 ## API
 

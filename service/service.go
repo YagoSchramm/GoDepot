@@ -1,7 +1,9 @@
 package service
 
 import (
+	"context"
 	"errors"
+	"log"
 	"os"
 	"strings"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor/impl/raw"
 	"github.com/YagoSchramm/GoDepot/infrastructure/files/processor/impl/video"
 	"github.com/YagoSchramm/GoDepot/infrastructure/files/watcher"
+	foundationcache "github.com/YagoSchramm/GoDepot/infrastructure/foundation/cache"
 	approuter "github.com/YagoSchramm/GoDepot/infrastructure/router"
 	modules "github.com/YagoSchramm/GoDepot/infrastructure/router/module"
 	"github.com/gorilla/mux"
@@ -69,9 +72,27 @@ func Build() (*mux.Router, func(), error) {
 
 	idx := impl.NewFileIndex()
 	fileCache := cache.NewMemoryCache(5 * time.Minute)
+	var closeCache func() error
+
+	redisURL := os.Getenv("REDIS_URL")
+	if redisURL != "" {
+		redisClient, err := foundationcache.NewRedisConnection(context.Background(), redisURL)
+		if err != nil {
+			return nil, func() { _ = dbConn.Close() }, err
+		}
+		fileCache = cache.NewRedisCache(redisClient, 5*time.Minute)
+		closeCache = redisClient.Close
+		log.Println("cache: using redis")
+	} else {
+		log.Println("cache: using in-memory cache")
+	}
 
 	w, err := watcher.NewWatcher(idx, fileCache)
 	if err != nil {
+		if closeCache != nil {
+			_ = closeCache()
+		}
+		_ = dbConn.Close()
 		return nil, func() {}, err
 	}
 
@@ -87,6 +108,9 @@ func Build() (*mux.Router, func(), error) {
 	authRepository := repoimpl.NewAuthRepository(dbConn)
 	cleanup := func() {
 		w.Stop()
+		if closeCache != nil {
+			_ = closeCache()
+		}
 		_ = dbConn.Close()
 	}
 
